@@ -1,27 +1,43 @@
-
 # UPDATE LOGOS FROM ESPN --------------------------------------------------
 
-# The purpose of this script is to download up to date logos for nhl teams
+# The purpose of this script is to download up to date logos for teams
+# Now supports multiple leagues: NHL, NBA, NFL, MLB
 
 # Author: David Jamieson
 # E-mail: david.jmsn@icloud.com
 # Initialized: 2025-05-29
+# Updated: 2025-05-30 for multi-league support
 
 # SETUP -------------------------------------------------------------------
-# Clean environment 
-rm(list = ls())
+# This script can be run standalone or called from a master script
+# If called from master, league will be provided
+
+# Check if being run standalone or from master script
+if (!exists("league")) {
+  # Running standalone - set defaults
+  rm(list = setdiff(ls(), "league"))
+  
+  # Default to NHL if not specified
+  league <- "NHL"
+  
+  # Validate league
+  valid_leagues <- c("NHL", "NBA", "NFL", "MLB")
+  if (!league %in% valid_leagues) {
+    stop("Invalid league specified. Must be one of: ", paste(valid_leagues, collapse = ", "))
+  }
+}
 
 # Load libraries with error handling
 required_packages <- c("yaml", "httr", "tools")
 for (pkg in required_packages) {
-  if (!require(pkg, character.only = TRUE)) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
     stop(paste("Required package", pkg, "is not installed. Please install it using install.packages('", pkg, "')"))
   }
 }
 
 # VARIABLES ---------------------------------------------------------------
 # Define paths
-data_dir <- "data/NHL/team_metadata/"
+data_dir <- file.path("data", league, "team_metadata")
 logos_dir <- file.path(data_dir, "logos")
 teams_yaml_path <- file.path(data_dir, "teams.yml")
 
@@ -49,8 +65,7 @@ loadTeamsData <- function(yaml_path) {
 
 # Function to generate filename from logo metadata using full team name
 generateLogoFilename <- function(team_info, logo_info) {
-  # Get the full team name and convert to uppercase (to match your data format)
-  # You can change this to use displayName, name, or any other field
+  # Get the full team name and convert to uppercase
   team_name_upper <- gsub("\\.","",toupper(team_info$displayName))
   
   # Replace spaces with underscores for filename
@@ -108,7 +123,7 @@ downloadLogo <- function(url, filepath, team_name, logo_type) {
 }
 
 # Function to process logos for a single team
-processTeamLogos <- function(team_abbr, team_info) {
+processTeamLogos <- function(team_abbr, team_info, delay = 0.5) {
   message("\nProcessing ", team_info$displayName, " (", team_abbr, ")...")
   
   # Check if logos exist
@@ -148,7 +163,7 @@ processTeamLogos <- function(team_abbr, team_info) {
     }
     
     # Small delay to be respectful to the server
-    Sys.sleep(0.5)
+    Sys.sleep(delay)
   }
   
   return(list(success = success_count, failed = failed_count))
@@ -221,7 +236,7 @@ createMappingFile <- function(teams_data, logos_dir) {
 }
 
 # EXECUTE SCRIPT ----------------------------------------------------------
-message("Starting NHL team logos download with full team names...")
+message("\nStarting ", league, " team logos download...")
 message("================================================")
 
 # Step 1: Load teams data
@@ -233,7 +248,16 @@ teams_data <- tryCatch({
 })
 message("Successfully loaded data for ", length(teams_data), " teams")
 
-# Step 2: Download logos for each team
+# Step 2: Set download delay based on league (more teams = smaller delay)
+download_delay <- switch(league,
+                         NHL = 0.5,
+                         NBA = 0.5,
+                         NFL = 0.4,  # NFL has 32 teams
+                         MLB = 0.5,
+                         0.5  # default
+)
+
+# Step 3: Download logos for each team
 total_success <- 0
 total_failed <- 0
 teams_processed <- 0
@@ -241,7 +265,7 @@ teams_with_errors <- 0
 
 for (team_abbr in names(teams_data)) {
   result <- tryCatch({
-    processTeamLogos(team_abbr, teams_data[[team_abbr]])
+    processTeamLogos(team_abbr, teams_data[[team_abbr]], delay = download_delay)
   }, error = function(e) {
     message("\n✗ Error processing ", team_abbr, ": ", e$message)
     return(list(success = 0, failed = 0))
@@ -256,18 +280,18 @@ for (team_abbr in names(teams_data)) {
   }
 }
 
-# Step 3: Validate downloads
+# Step 4: Validate downloads
 message("\n================================================")
 message("Validating downloaded files...")
 validation <- validateDownloads(logos_dir)
 
-# Step 4: Create mapping file for reference
+# Step 5: Create mapping file for reference
 message("\nCreating team logo mapping file...")
 mapping <- createMappingFile(teams_data, logos_dir)
 
-# Step 5: Summary report
+# Step 6: Summary report
 message("\n================================================")
-message("DOWNLOAD SUMMARY")
+message("DOWNLOAD SUMMARY FOR ", league)
 message("================================================")
 message("Teams processed: ", teams_processed, " / ", length(teams_data))
 message("Teams with errors: ", teams_with_errors)
@@ -285,7 +309,7 @@ if (length(validation$invalid_files) > 0) {
 }
 
 # Display sample of downloaded files
-message("\nSample of downloaded logos with new naming:")
+message("\nSample of downloaded logos:")
 sample_files <- head(list.files(logos_dir, pattern = "\\.png$"), 10)
 for (file in sample_files) {
   size_kb <- round(file.size(file.path(logos_dir, file)) / 1024, 1)
@@ -301,6 +325,16 @@ for (i in 1:nrow(example_teams)) {
 
 message("\nAll logos saved to: ", logos_dir)
 message("Mapping file saved as: team_logo_mapping.csv")
-message("\nScript completed!")
+message("\nScript 02 completed successfully for ", league, "!")
+
+# Return success status and logo count for master script
+if (exists("master_mode") && master_mode) {
+  script_result <- list(
+    success = TRUE,
+    logos_downloaded = total_success,
+    logos_failed = total_failed,
+    league = league
+  )
+}
 
 # END ---------------------------------------------------------------------

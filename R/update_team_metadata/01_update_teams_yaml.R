@@ -1,30 +1,53 @@
-
 # UPDATE TEAMS YAML FILE FROM ESPN ----------------------------------------
 
 # The purpose of this script is to update the teams yaml file from ESPNs data
+# Now supports multiple leagues: NHL, NBA, NFL, MLB
 
 # Author: David Jamieson
 # E-mail: david.jmsn@icloud.com
 # Initialized: 2025-05-29
+# Updated: 2025-05-30 for multi-league support
 
 # SETUP -------------------------------------------------------------------
-# Clean environment 
-rm(list = ls())
+# This script can be run standalone or called from a master script
+# If called from master, league and league_config will be provided
+
+# Check if being run standalone or from master script
+if (!exists("league") || !exists("league_config")) {
+  # Running standalone - set defaults
+  rm(list = setdiff(ls(), c("league", "league_config")))
+  
+  # Default to NHL if not specified
+  league <- "NHL"
+  
+  # Define league configurations
+  league_configs <- list(
+    NHL = list(sport = "hockey", league_code = "nhl"),
+    NBA = list(sport = "basketball", league_code = "nba"),
+    NFL = list(sport = "football", league_code = "nfl"),
+    MLB = list(sport = "baseball", league_code = "mlb")
+  )
+  
+  league_config <- league_configs[[league]]
+  
+  if (is.null(league_config)) {
+    stop("Invalid league specified. Must be one of: NHL, NBA, NFL, MLB")
+  }
+}
 
 # Load libraries with error handling
 required_packages <- c("jsonlite", "httr", "data.table", "yaml")
 for (pkg in required_packages) {
-  if (!require(pkg, character.only = TRUE)) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
     stop(paste("Required package", pkg, "is not installed. Please install it using install.packages('", pkg, "')"))
   }
 }
 
 # VARIABLES ---------------------------------------------------------------
-# Any hardcoded variables, options etc...
 current_date <- format(Sys.Date(), format = "%Y%m%d")
 
 # Create directory if it doesn't exist
-data_dir <- "data/NHL/team_metadata/"
+data_dir <- file.path("data", league, "team_metadata")
 if (!dir.exists(data_dir)) {
   dir.create(data_dir, recursive = TRUE)
   message("Created directory: ", data_dir)
@@ -40,11 +63,16 @@ output_paths <- list(
 
 # FUNCTIONS ---------------------------------------------------------------
 # Function to fetch team data from ESPN API
-teamDict <- function() {
+teamDict <- function(sport, league_code) {
+  # Construct API URL
+  api_url <- sprintf('https://site.api.espn.com/apis/site/v2/sports/%s/%s/teams', 
+                     sport, league_code)
+  
+  message("  API URL: ", api_url)
+  
   # Make API request with timeout
   teamsJSON <- tryCatch({
-    GET('https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams', 
-        timeout(30))
+    GET(api_url, timeout(30))
   }, error = function(e) {
     stop("Network error when fetching team data: ", e$message)
   })
@@ -144,12 +172,12 @@ createCSVData <- function(teams_dict) {
 }
 
 # EXECUTE SCRIPT ----------------------------------------------------------
-message("Starting NHL teams data fetch and processing...")
+message("\nStarting ", league, " teams data fetch and processing...")
 
 # Step 1: Fetch team data from ESPN API
 message("Fetching data from ESPN API...")
 teams_raw <- tryCatch({
-  teamDict()
+  teamDict(league_config$sport, league_config$league_code)
 }, error = function(e) {
   stop("Failed to fetch team data: ", e$message)
 })
@@ -211,6 +239,7 @@ tryCatch({
 
 # Final sanity checks
 message("\nFinal validation:")
+message("  - League: ", league)
 message("  - Teams processed: ", length(teams_dict))
 message("  - CSV rows written: ", nrow(csv_data))
 
@@ -221,6 +250,15 @@ for (team_abbr in sample_teams) {
   message("  - ", team_abbr, ": ", teams_dict[[team_abbr]]$displayName)
 }
 
-message("\nScript completed successfully!")
+message("\nScript 01 completed successfully for ", league, "!")
+
+# Return success status and team count for master script
+if (exists("master_mode") && master_mode) {
+  script_result <- list(
+    success = TRUE,
+    teams_count = length(teams_dict),
+    league = league
+  )
+}
 
 # END ---------------------------------------------------------------------
