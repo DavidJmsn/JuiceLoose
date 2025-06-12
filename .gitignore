@@ -52,3 +52,7 @@ rsconnect/
 data/
 
 *.DS_Store
+
+logs/
+
+Library/
