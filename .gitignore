@@ -54,6 +54,9 @@ expected_value/
 scores/
 harmonized/
 logos/
+odds/
+schedule/
+NHL_*./
 
 *.DS_Store
 
