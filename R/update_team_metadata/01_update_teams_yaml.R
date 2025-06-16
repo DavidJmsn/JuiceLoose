@@ -42,12 +42,13 @@ for (pkg in required_packages) {
     stop(paste("Required package", pkg, "is not installed. Please install it using install.packages('", pkg, "')"))
   }
 }
+library(here)
 
 # VARIABLES ---------------------------------------------------------------
 current_date <- format(Sys.Date(), format = "%Y%m%d")
 
 # Create directory if it doesn't exist
-data_dir <- file.path("data", league, "team_metadata")
+data_dir <- here("data", league, "team_metadata")
 if (!dir.exists(data_dir)) {
   dir.create(data_dir, recursive = TRUE)
   message("Created directory: ", data_dir)
