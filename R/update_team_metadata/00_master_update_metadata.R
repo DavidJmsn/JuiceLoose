@@ -9,6 +9,7 @@
 
 # SETUP -------------------------------------------------------------------
 rm(list = ls())
+library(here)
 
 # USER CONFIGURATION ------------------------------------------------------
 # Select which leagues to process
@@ -67,7 +68,7 @@ checkPackages <- function() {
 
 # Function to check if data is recent
 isDataRecent <- function(league, threshold_hours) {
-  yaml_path <- file.path("data", league, "team_metadata", "teams.yml")
+  yaml_path <- here("data", league, "team_metadata", "teams.yml")
   
   if (!file.exists(yaml_path)) {
     return(FALSE)
@@ -130,7 +131,7 @@ processLeague <- function(league, league_config, options) {
   )
   
   # Run script 01: Update teams YAML
-  result_01 <- runScript("R/update_team_metadata/01_update_teams_yaml.R", league, league_config)
+  result_01 <- runScript(here("R", "update_team_metadata", "01_update_teams_yaml.R"), league, league_config)
   results$scripts$update_yaml <- result_01
   
   if (!result_01$success) {
@@ -140,7 +141,7 @@ processLeague <- function(league, league_config, options) {
   }
   
   # Run script 02: Update logos
-  result_02 <- runScript("R/update_team_metadata/02_update_logos.R", league, league_config)
+  result_02 <- runScript(here("R", "update_team_metadata", "02_update_logos.R"), league, league_config)
   results$scripts$update_logos <- result_02
   
   if (!result_02$success) {
@@ -150,7 +151,7 @@ processLeague <- function(league, league_config, options) {
   }
   
   # Run script 03: Convert logos to RDS
-  result_03 <- runScript("R/update_team_metadata/03_convert_logos_to_rds.R", league, league_config)
+  result_03 <- runScript(here("R", "update_team_metadata", "03_convert_logos_to_rds.R"), league, league_config)
   results$scripts$convert_rds <- result_03
   
   if (!result_03$success) {
@@ -228,9 +229,9 @@ createSummaryReport <- function(all_results, start_time) {
   }
   
   # Save summary report
-  summary_file <- file.path("data", paste0("update_summary_", 
-                                           format(Sys.time(), "%Y%m%d_%H%M%S"), 
-                                           ".csv"))
+  summary_file <- here("data", paste0("update_summary_",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S"),
+                                     ".csv"))
   
   tryCatch({
     dir.create("data", showWarnings = FALSE)

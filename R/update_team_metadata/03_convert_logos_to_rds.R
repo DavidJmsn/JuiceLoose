@@ -35,10 +35,11 @@ for (pkg in required_packages) {
     stop(paste("Required package", pkg, "is not installed. Please install it using install.packages('", pkg, "')"))
   }
 }
+library(here)
 
 # VARIABLES ---------------------------------------------------------------
 # Define paths
-data_dir <- file.path("data", league, "team_metadata")
+data_dir <- here("data", league, "team_metadata")
 logos_dir <- file.path(data_dir, "logos")
 teams_yaml_path <- file.path(data_dir, "teams.yml")
 output_rds <- file.path(data_dir, paste0(tolower(league), "_logos_preloaded.rds"))
