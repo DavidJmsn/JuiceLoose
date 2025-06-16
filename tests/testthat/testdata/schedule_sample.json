@@ -1,0 +1,21 @@
+{
+  "gameWeek": {
+    "date": ["2025-01-01"],
+    "games": [
+      [
+        {
+          "id": 1,
+          "season": 20252026,
+          "gameType": 2,
+          "gameState": "FUT",
+          "startTimeUTC": "2025-01-01T01:00:00Z",
+          "venue": {"default": "Arena"},
+          "homeTeam": {"abbrev": "NYR", "placeName": {"default": "New York"}, "commonName": {"default": "Rangers"}, "score": 0},
+          "awayTeam": {"abbrev": "BOS", "placeName": {"default": "Boston"}, "commonName": {"default": "Bruins"}, "score": 0},
+          "venueTimezone": "America/New_York",
+          "tvBroadcasts": []
+        }
+      ]
+    ]
+  }
+}
