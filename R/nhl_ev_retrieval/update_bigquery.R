@@ -12,17 +12,11 @@ suppressPackageStartupMessages({
   library(gargle)
   library(lubridate)
   library(dplyr)
+  library(here)
 })
 
-# Get script directory
-if (interactive()) {
-  script_dir <- getwd()
-} else {
-  script_dir <- dirname(sys.frame(1)$ofile)
-}
-
-# Source utilities
-source(file.path(script_dir, "utils", "common.R"))
+# Source utilities using here()
+source(here("R", "nhl_ev_retrieval", "utils", "common.R"))
 
 # CONFIGURATION ------------------------------------------------------------
 

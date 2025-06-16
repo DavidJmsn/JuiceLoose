@@ -5,23 +5,16 @@
 
 suppressPackageStartupMessages({
   library(data.table)
+  library(here)
 })
-
-# Get script directory
-if (interactive()) {
-  script_dir <- getwd()
-} else {
-  script_dir <- dirname(sys.frame(1)$ofile)
-}
-
-# Source all modules
-source(file.path(script_dir, "utils", "common.R"))
-source(file.path(script_dir, "utils", "api_client.R"))
-source(file.path(script_dir, "utils", "selenium_manager.R"))
-source(file.path(script_dir, "collectors", "schedule.R"))
-source(file.path(script_dir, "collectors", "probabilities.R"))
-source(file.path(script_dir, "collectors", "odds.R"))
-source(file.path(script_dir, "collectors", "goalies.R"))
+# Source all modules using here()
+source(here("R", "nhl_ev_retrieval", "utils", "common.R"))
+source(here("R", "nhl_ev_retrieval", "utils", "api_client.R"))
+source(here("R", "nhl_ev_retrieval", "utils", "selenium_manager.R"))
+source(here("R", "nhl_ev_retrieval", "collectors", "schedule.R"))
+source(here("R", "nhl_ev_retrieval", "collectors", "probabilities.R"))
+source(here("R", "nhl_ev_retrieval", "collectors", "odds.R"))
+source(here("R", "nhl_ev_retrieval", "collectors", "goalies.R"))
 
 # MAIN FUNCTIONS -----------------------------------------------------------
 
