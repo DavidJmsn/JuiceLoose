@@ -6,13 +6,14 @@
 suppressPackageStartupMessages({
   library(data.table)
   library(lubridate)
+  library(here)
 })
 
 # CONFIGURATION ------------------------------------------------------------
 
 nhl_config <- list(
   # Base paths
-  data_dir = file.path(Sys.getenv("HOME"), "data/NHL"),
+  data_dir = here("data", "NHL"),
   log_file = NULL,  # Set at runtime
   
   # API endpoints
