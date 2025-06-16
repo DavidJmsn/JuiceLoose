@@ -6,30 +6,12 @@
 suppressPackageStartupMessages({
   library(data.table)
   library(lubridate)
+  library(here)
 })
 
-# Source utilities - use more robust path detection
-if (!exists("nhl_config")) {
-  # Try relative path first
-  if (file.exists("utils/common.R")) {
-    source("utils/common.R")
-  } else if (file.exists("../utils/common.R")) {
-    source("../utils/common.R")
-  } else {
-    stop("Cannot find common.R - please ensure working directory is correct")
-  }
-}
-
-if (!exists("api_get")) {
-  # Try relative path first
-  if (file.exists("utils/api_client.R")) {
-    source("utils/api_client.R")
-  } else if (file.exists("../utils/api_client.R")) {
-    source("../utils/api_client.R")
-  } else {
-    stop("Cannot find api_client.R - please ensure working directory is correct")
-  }
-}
+# Source utilities using here()
+source(here("R", "nhl_ev_retrieval", "utils", "common.R"))
+source(here("R", "nhl_ev_retrieval", "utils", "api_client.R"))
 
 # HELPER FUNCTIONS ---------------------------------------------------------
 

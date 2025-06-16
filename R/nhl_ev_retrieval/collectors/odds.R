@@ -6,11 +6,12 @@
 suppressPackageStartupMessages({
   library(data.table)
   library(lubridate)
+  library(here)
 })
 
-# Source utilities
-source(file.path(dirname(dirname(sys.frame(1)$ofile)), "utils", "common.R"))
-source(file.path(dirname(dirname(sys.frame(1)$ofile)), "utils", "api_client.R"))
+# Source utilities using here()
+source(here("R", "nhl_ev_retrieval", "utils", "common.R"))
+source(here("R", "nhl_ev_retrieval", "utils", "api_client.R"))
 
 # PARSING FUNCTIONS --------------------------------------------------------
 

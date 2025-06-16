@@ -7,11 +7,12 @@ suppressPackageStartupMessages({
   library(data.table)
   library(rvest)
   library(stringr)
+  library(here)
 })
 
-# Source utilities
-source(file.path(dirname(dirname(sys.frame(1)$ofile)), "utils", "common.R"))
-source(file.path(dirname(dirname(sys.frame(1)$ofile)), "utils", "selenium_manager.R"))
+# Source utilities using here()
+source(here("R", "nhl_ev_retrieval", "utils", "common.R"))
+source(here("R", "nhl_ev_retrieval", "utils", "selenium_manager.R"))
 
 # EXTRACTION FUNCTIONS -----------------------------------------------------
 

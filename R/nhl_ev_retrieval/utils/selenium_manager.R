@@ -7,10 +7,11 @@ suppressPackageStartupMessages({
   library(R6)
   library(RSelenium)
   library(data.table)
+  library(here)
 })
 
-# Source common utilities
-source(file.path(dirname(dirname(sys.frame(1)$ofile)), "utils", "common.R"))
+# Source common utilities using here()
+source(here("R", "nhl_ev_retrieval", "utils", "common.R"))
 
 # DOCKER MANAGEMENT FUNCTIONS ----------------------------------------------
 
