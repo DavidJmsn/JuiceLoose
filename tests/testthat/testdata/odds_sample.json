@@ -1,0 +1,27 @@
+[
+  {
+    "id": "game1",
+    "sport_key": "icehockey_nhl",
+    "sport_title": "NHL",
+    "commence_time": "2025-01-01T01:00:00Z",
+    "home_team": "New York Rangers",
+    "away_team": "Boston Bruins",
+    "bookmakers": [
+      {
+        "key": "draftkings",
+        "title": "DraftKings",
+        "last_update": "2025-01-01T00:00:00Z",
+        "markets": [
+          {
+            "key": "h2h",
+            "last_update": "2025-01-01T00:00:00Z",
+            "outcomes": [
+              {"name": "New York Rangers", "price": 1.9},
+              {"name": "Boston Bruins", "price": 2.0}
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
