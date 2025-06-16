@@ -49,7 +49,11 @@ po/*~
 rsconnect/
 
 # Data folder
-data/
+# data/
+expected_value/
+scores/
+harmonized/
+logos/
 
 *.DS_Store
 
