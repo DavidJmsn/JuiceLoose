@@ -647,40 +647,160 @@ server <- function(input, output, session) {
     if (is.null(sel_game)) {
       return(plot_ly() %>% layout(title = "Select a game to view line movement"))
     }
-    
+
     # Filter for selected game
     game_data <- upcoming_games[game == sel_game]
-    
+
     if (nrow(game_data) == 0) {
       return(plot_ly() %>% layout(title = "No data for selected game"))
     }
-    
+
     # Add team colors
     game_data <- merge(game_data, team_colors, by = "team", all.x = TRUE)
     game_data[is.na(color_hex), color_hex := app_config$color_gray]
-    
-    # Create simple view since we only have one observation per team
-    plot_ly() %>%
-      add_bars(data = game_data,
-               x = ~team, y = ~kelly_criterion,
-               marker = list(color = ~color_hex),
-               name = "Kelly Criterion",
-               text = ~paste("KC:", round(kelly_criterion, 3),
-                             "<br>Line:", round(price, 2),
-                             "<br>Win Prob:", round(win_probability, 3)),
-               hoverinfo = "text") %>%
-      add_bars(data = game_data,
-               x = ~team, y = ~expected_value,
-               marker = list(color = ~color_hex, opacity = 0.6),
-               name = "Expected Value",
-               visible = "legendonly") %>%
+
+    # Calculate time relative to game start
+    game_data[, `:=`(
+      retrieval_time = as.POSIXct(retrieval_time),
+      game_time_est = as.POSIXct(game_time_est),
+      hours_to_game = as.numeric(difftime(retrieval_time, game_time_est, units = "hours"))
+    )]
+    setorder(game_data, team, hours_to_game)
+
+    p <- plot_ly()
+    for (tm in unique(game_data$team)) {
+      tm_data <- game_data[team == tm]
+      col <- paste0("#", gsub("^#", "", tm_data$color_hex[1]))
+      p <- p %>%
+        add_trace(
+          data = tm_data,
+          x = ~hours_to_game, y = ~kelly_criterion,
+          type = "scatter", mode = "lines+markers",
+          line = list(color = col, shape = "hv", width = 3),
+          marker = list(color = col),
+          hoverlabel = list(bgcolor = col),
+          hoverinfo = "text",
+          hovertext = ~paste0(
+            '<b>Team:</b> ', tm,
+            '<br><b>KC:</b> ', round(kelly_criterion, 2),
+            '<br><b>Line:</b> ', round(price, 2),
+            '<br><b>Win Prob:</b> ', round(win_probability, 2),
+            '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)
+          ),
+          name = paste(tm, "KC"),
+          visible = TRUE,
+          showlegend = TRUE
+        ) %>%
+        add_trace(
+          data = tm_data,
+          x = ~hours_to_game, y = ~expected_value,
+          type = "scatter", mode = "lines+markers",
+          line = list(color = col, dash = "dash", shape = "hv", width = 3),
+          marker = list(color = col),
+          hoverlabel = list(bgcolor = col),
+          hoverinfo = "text",
+          hovertext = ~paste0(
+            '<b>Team:</b> ', tm,
+            '<br><b>EV:</b> ', round(expected_value, 2),
+            '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)
+          ),
+          name = paste(tm, "EV"),
+          yaxis = "y2",
+          visible = FALSE,
+          showlegend = FALSE
+        ) %>%
+        add_trace(
+          data = tm_data,
+          x = ~hours_to_game, y = ~price,
+          type = "scatter", mode = "lines+markers",
+          line = list(color = col, dash = "dot", shape = "hv", width = 3),
+          marker = list(color = col),
+          hoverlabel = list(bgcolor = col),
+          hoverinfo = "text",
+          hovertext = ~paste0(
+            '<b>Team:</b> ', tm,
+            '<br><b>Line:</b> ', round(price, 2),
+            '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)
+          ),
+          name = paste(tm, "Line"),
+          yaxis = "y3",
+          visible = FALSE,
+          showlegend = FALSE
+        ) %>%
+        add_trace(
+          data = tm_data,
+          x = ~hours_to_game, y = ~win_probability,
+          type = "scatter", mode = "lines+markers",
+          line = list(color = col, dash = "dashdot", shape = "hv", width = 3),
+          marker = list(color = col),
+          hoverlabel = list(bgcolor = col),
+          hoverinfo = "text",
+          hovertext = ~paste0(
+            '<b>Team:</b> ', tm,
+            '<br><b>Win Prob:</b> ', round(win_probability, 2),
+            '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)
+          ),
+          name = paste(tm, "Win Prob"),
+          yaxis = "y4",
+          visible = FALSE,
+          showlegend = FALSE
+        )
+    }
+
+    n_teams <- length(unique(game_data$team))
+    n_traces_per_team <- 4
+    total_traces <- n_teams * n_traces_per_team
+    vis_all <- rep(TRUE, total_traces)
+    vis_kc <- rep(FALSE, total_traces)
+    vis_line <- rep(FALSE, total_traces)
+    for (i in 0:(n_teams - 1)) {
+      vis_kc[i * n_traces_per_team + 1] <- TRUE
+      vis_line[i * n_traces_per_team + 3] <- TRUE
+      vis_line[i * n_traces_per_team + 4] <- TRUE
+    }
+
+    x_rng <- range(game_data$hours_to_game)
+    p %>%
       layout(
         title = list(text = sel_game, y = 0.97),
-        xaxis = list(title = "Team"),
-        yaxis = list(title = "Value", 
-                     zerolinecolor = "#CCCCCC",
-                     zerolinewidth = 3),
-        barmode = "group"
+        xaxis = list(
+          title = "Hours Before Game",
+          range = c(max(x_rng, 0) + 1, min(x_rng)),
+          zerolinecolor = "#CCCCCC",
+          zerolinewidth = 3
+        ),
+        yaxis = list(title = "Kelly Criterion"),
+        yaxis2 = list(title = "Expected Value", overlaying = "y", side = "right"),
+        yaxis3 = list(title = "Line", overlaying = "y", side = "left"),
+        yaxis4 = list(title = "Win Probability", overlaying = "y", side = "right", range = c(0, 1)),
+        legend = list(title = list(text = "Team"), x = 0.02, y = 0.02),
+        margin = list(r = 50),
+        updatemenus = list(
+          list(
+            active = 1,
+            type = "buttons",
+            direction = "down",
+            x = 0.1,
+            y = 1.1,
+            buttons = list(
+              list(
+                label = "All",
+                method = "restyle",
+                args = list("visible", vis_all)
+              ),
+              list(
+                label = "Kelly Crit.",
+                method = "restyle",
+                args = list("visible", vis_kc)
+              ),
+              list(
+                label = "Line & Win %",
+                method = "restyle",
+                args = list("visible", vis_line)
+              )
+            )
+          )
+        )
       )
   })
   
