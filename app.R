@@ -670,7 +670,7 @@ server <- function(input, output, session) {
     p <- plot_ly()
     for (tm in unique(game_data$team)) {
       tm_data <- game_data[team == tm]
-      col <- tm_data$color_hex[1]
+      col <- paste0("#", gsub("^#", "", tm_data$color_hex[1]))
       p <- p %>%
         add_trace(
           data = tm_data,
@@ -678,12 +678,15 @@ server <- function(input, output, session) {
           type = "scatter", mode = "lines+markers",
           line = list(color = col, shape = "hv", width = 3),
           marker = list(color = col),
+          hoverlabel = list(bgcolor = col),
           hoverinfo = "text",
-          hovertext = ~paste0('<b>Team:</b> ', team,
-                              '<br><b>KC:</b> ', round(kelly_criterion, 2),
-                              '<br><b>Line:</b> ', round(price, 2),
-                              '<br><b>Win Prob:</b> ', round(win_probability, 2),
-                              '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)),
+          hovertext = ~paste0(
+            '<b>Team:</b> ', tm,
+            '<br><b>KC:</b> ', round(kelly_criterion, 2),
+            '<br><b>Line:</b> ', round(price, 2),
+            '<br><b>Win Prob:</b> ', round(win_probability, 2),
+            '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)
+          ),
           name = paste(tm, "KC"),
           visible = TRUE,
           showlegend = TRUE
@@ -694,10 +697,13 @@ server <- function(input, output, session) {
           type = "scatter", mode = "lines+markers",
           line = list(color = col, dash = "dash", shape = "hv", width = 3),
           marker = list(color = col),
+          hoverlabel = list(bgcolor = col),
           hoverinfo = "text",
-          hovertext = ~paste0('<b>Team:</b> ', team,
-                              '<br><b>EV:</b> ', round(expected_value, 2),
-                              '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)),
+          hovertext = ~paste0(
+            '<b>Team:</b> ', tm,
+            '<br><b>EV:</b> ', round(expected_value, 2),
+            '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)
+          ),
           name = paste(tm, "EV"),
           yaxis = "y2",
           visible = FALSE,
@@ -709,10 +715,13 @@ server <- function(input, output, session) {
           type = "scatter", mode = "lines+markers",
           line = list(color = col, dash = "dot", shape = "hv", width = 3),
           marker = list(color = col),
+          hoverlabel = list(bgcolor = col),
           hoverinfo = "text",
-          hovertext = ~paste0('<b>Team:</b> ', team,
-                              '<br><b>Line:</b> ', round(price, 2),
-                              '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)),
+          hovertext = ~paste0(
+            '<b>Team:</b> ', tm,
+            '<br><b>Line:</b> ', round(price, 2),
+            '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)
+          ),
           name = paste(tm, "Line"),
           yaxis = "y3",
           visible = FALSE,
@@ -724,10 +733,13 @@ server <- function(input, output, session) {
           type = "scatter", mode = "lines+markers",
           line = list(color = col, dash = "dashdot", shape = "hv", width = 3),
           marker = list(color = col),
+          hoverlabel = list(bgcolor = col),
           hoverinfo = "text",
-          hovertext = ~paste0('<b>Team:</b> ', team,
-                              '<br><b>Win Prob:</b> ', round(win_probability, 2),
-                              '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)),
+          hovertext = ~paste0(
+            '<b>Team:</b> ', tm,
+            '<br><b>Win Prob:</b> ', round(win_probability, 2),
+            '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)
+          ),
           name = paste(tm, "Win Prob"),
           yaxis = "y4",
           visible = FALSE,
