@@ -270,6 +270,41 @@ calc_line_from_ev <- function(ev, prob) {
   ifelse(prob > 0 & prob <= 1, (ev + 1) / prob, NA_real_)
 }
 
+#' Generate EV background layers
+#'
+#' Creates a set of `geom_ribbon` and `geom_line` layers giving the
+#' red–green gradient background and the 0 EV reference line used in the
+#' scatterplots.
+#' @param x_range numeric vector of length 2 specifying the range of win
+#'   probabilities to cover
+#' @return list of ggplot layers
+ev_background_layers <- function(x_range = c(0, 1)) {
+  x_vals <- seq(x_range[1], x_range[2], length.out = 200)
+  bg <- data.frame(
+    x = x_vals,
+    neg = calc_line_from_ev(-5, x_vals),
+    ev0 = calc_line_from_ev(0, x_vals),
+    ev05 = calc_line_from_ev(0.05, x_vals),
+    ev10 = calc_line_from_ev(0.10, x_vals),
+    high = calc_line_from_ev(100, x_vals)
+  )
+
+  list(
+    geom_ribbon(data = bg, aes(x = x, ymin = 0, ymax = neg),
+                fill = "red", alpha = 0.4, inherit.aes = FALSE),
+    geom_ribbon(data = bg, aes(x = x, ymin = neg, ymax = ev0),
+                fill = "red", alpha = 0.3, inherit.aes = FALSE),
+    geom_ribbon(data = bg, aes(x = x, ymin = ev0, ymax = ev05),
+                fill = "orange", alpha = 0.2, inherit.aes = FALSE),
+    geom_ribbon(data = bg, aes(x = x, ymin = ev05, ymax = ev10),
+                fill = "yellow", alpha = 0.2, inherit.aes = FALSE),
+    geom_ribbon(data = bg, aes(x = x, ymin = ev10, ymax = high),
+                fill = "green", alpha = 0.2, inherit.aes = FALSE),
+    geom_line(data = bg, aes(x = x, y = ev0),
+              color = "black", size = 0.6, inherit.aes = FALSE)
+  )
+}
+
 # PLOTTING FUNCTIONS ------------------------------------------------------
 
 #' Create EV scatter plot
@@ -291,15 +326,15 @@ create_ev_plot <- function(dt, interactive = TRUE) {
   
   if (nrow(plot_dt) == 0) return(NULL)
   
-  # Create base plot
+  # Determine range for background
+  x_range <- c(0, 1)
+
+  # Create base plot with EV background
   p <- ggplot(plot_dt, aes(x = win_percent, y = price)) +
-    # EV reference lines
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
-    geom_abline(slope = 1/1.05, intercept = 0, linetype = "dotted", color = "green") +
-    geom_abline(slope = 1/0.95, intercept = 0, linetype = "dotted", color = "red") +
+    ev_background_layers(x_range) +
     # Points
     geom_point(aes(color = factor(winner), shape = factor(winner)), size = 3) +
-    scale_color_manual(values = c("TRUE" = app_config$color_green, 
+    scale_color_manual(values = c("TRUE" = app_config$color_green,
                                   "FALSE" = app_config$color_red),
                        na.value = app_config$color_gray) +
     scale_shape_manual(values = c("TRUE" = 16, "FALSE" = 4),
@@ -735,12 +770,9 @@ server <- function(input, output, session) {
       }
     }
     
-    # Create base plot
+    # Create base plot with EV background
     p <- ggplot(up_val_df, aes(x = win_percent, y = price)) +
-      # EV reference lines
-      geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black") +
-      geom_abline(slope = 1/1.05, intercept = 0, linetype = "dotted", color = "green") +
-      geom_abline(slope = 1/0.95, intercept = 0, linetype = "dotted", color = "red")
+      ev_background_layers(c(0, 1))
     
     # Add logos or points
     if ("logo_path" %in% names(up_val_df)) {
