@@ -137,6 +137,23 @@ APIClient <- R6Class("APIClient",
                             status_code(response), url), "ERROR")
         return(NULL)
       }
+
+      # Quota information
+      hdr <- headers(response)
+      remaining <- hdr[["x-requests-remaining"]]
+      used      <- hdr[["x-requests-used"]]
+      last_cost <- hdr[["x-requests-last"]]
+      if (!is.null(remaining) || !is.null(used) || !is.null(last_cost)) {
+        log_message(
+          sprintf(
+            "Quota remaining: %s | Used: %s | Last cost: %s",
+            rlang::`%||%`(remaining, "NA"),
+            rlang::`%||%`(used, "NA"),
+            rlang::`%||%`(last_cost, "NA")
+          ),
+          "INFO"
+        )
+      }
       
       # Parse response
       content_text <- content(response, "text", encoding = "UTF-8")
@@ -147,6 +164,10 @@ APIClient <- R6Class("APIClient",
         log_message(sprintf("Failed to parse JSON response: %s", e$message), "ERROR")
         NULL
       })
+
+      if (!is.null(data)) {
+        attr(data, "response_headers") <- hdr
+      }
       
       # Cache successful response
       if (!is.null(data) && use_cache) {
