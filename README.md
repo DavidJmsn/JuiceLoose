@@ -24,3 +24,11 @@ Google BigQuery for use on Posit Connect.
 Additional scripts for downloading team metadata are documented in
 `R/update_team_metadata/README.md`.
 
+## API quota usage
+
+`APIClient$get` logs the remaining quota information returned by the NHL API.
+If the response headers include `X-Requests-Remaining`, `X-Requests-Used`, or
+`X-Requests-Last`, the values are printed at the INFO level. These headers are
+also attached to the parsed response as `attr(res, "response_headers")` so that
+callers can implement their own rate limiting or monitoring.
+
