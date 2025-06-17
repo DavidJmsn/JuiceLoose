@@ -327,11 +327,12 @@ create_ev_plot <- function(dt, interactive = TRUE) {
   if (nrow(plot_dt) == 0) return(NULL)
   
   # Determine range for background
-  x_range <- c(0, 1)
+  x_range <- c(min(dt$win_percent - 0.05), max(dt$win_percent + 0.05))
 
   # Create base plot with EV background
   p <- ggplot(plot_dt, aes(x = win_percent, y = price)) +
-    ev_background_layers(x_range) +
+    ev_background_layers(x_range)+ 
+    coord_cartesian(ylim = c(min(dt$price) - 0.2, max(dt$price) + 0.2)) +
     # Points
     geom_point(aes(color = factor(winner), shape = factor(winner)), size = 3) +
     scale_color_manual(values = c("TRUE" = app_config$color_green,
@@ -772,7 +773,8 @@ server <- function(input, output, session) {
     
     # Create base plot with EV background
     p <- ggplot(up_val_df, aes(x = win_percent, y = price)) +
-      ev_background_layers(c(0, 1))
+      ev_background_layers(c(min(up_val_df$win_percent) - 0.05, max(up_val_df$win_percent) + 0.05)) + 
+      coord_cartesian(ylim = c(min(up_val_df$price) - 0.2, max(up_val_df$price) + 0.2))
     
     # Add logos or points
     if ("logo_path" %in% names(up_val_df)) {
