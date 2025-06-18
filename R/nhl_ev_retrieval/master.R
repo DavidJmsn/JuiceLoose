@@ -172,12 +172,15 @@ retrieve_nhl_expected_values <- function(dates = NULL,
   merged_dt <- odds_merge[merged_dt,
     on = .(
       game_date = game_date_est,
-      home_team = home, 
+      home_team = home,
       away_team = away,
       name = team,
       game_time = game_time_est
     ),
-    roll = "nearest"
+    # Restrict rolling join to odds within two hours AFTER the scheduled time
+    # Using negative roll means search forward from the scheduled time
+    # Numeric value (in seconds) limits how far forward to roll
+    roll = -2 * 3600
   ]
   
   # Rename columns properly
