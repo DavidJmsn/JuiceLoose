@@ -752,10 +752,13 @@ server <- function(input, output, session) {
       vis_kc_winprob[base + c(1,4)] <- TRUE
     }
 
-    x_rng <- range(game_data$hours_to_game)
+    # x_rng <- range(game_data$hours_to_game)
+    x_rng <- c(min(game_data$hours_to_game) - 5, 0)
+    y_rng <- range(c(game_data$kelly_criterion, -0.2, 0.2))
 
     # Create background gradient for Kelly Criterion
-    kc_range <- range(c(game_data$kelly_criterion, 0, 0.1))
+    # kc_range <- range(c(game_data$kelly_criterion, 0, 0.1))
+    kc_range <- range(c(-0.5, 0, 0.5))
     shapes <- list()
     if (kc_range[1] < 0) {
       shapes <- c(shapes, list(list(
@@ -799,7 +802,8 @@ server <- function(input, output, session) {
           zerolinecolor = "#CCCCCC",
           zerolinewidth = 3
         ),
-        yaxis = list(title = "Kelly Criterion"),
+        yaxis = list(title = "Kelly Criterion",
+                     range = c(y_rng[1]-0.05, y_rng[2]+0.05)),
         yaxis2 = list(title = "Expected Value", overlaying = "y", side = "right", position = 1, anchor = "free"),
         yaxis3 = list(title = "Line", overlaying = "y", side = "left"),
         yaxis4 = list(title = "Win Probability", overlaying = "y", side = "right", range = c(0, 1), position = 0.95),
