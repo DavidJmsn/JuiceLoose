@@ -487,8 +487,8 @@ update_completed_games <- function(completed_games) {
       
       if (length(existing_key_cols) == length(new_key_cols) && 
           length(existing_key_cols) > 0) {
-        setkey(existing, existing_key_cols)
-        setkey(completed_games, new_key_cols)
+        setkeyv(existing, existing_key_cols)
+        setkeyv(completed_games, new_key_cols)
         new_only <- completed_games[!existing]
       } else {
         # If key columns don't match, append all
