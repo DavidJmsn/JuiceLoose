@@ -787,7 +787,8 @@ server <- function(input, output, session) {
           zerolinecolor = "#CCCCCC",
           zerolinewidth = 3
         ),
-        yaxis = list(title = "Line", side = "left", position = 0),
+        yaxis = list(title = "Line", side = "left", position = 0,
+                     range = c(0.75, max(game_data$price)+0.25)),
         yaxis2 = list(title = "Kelly Criterion", overlaying = "y", side = "right",
                      range = c(y_rng[1]-0.05, y_rng[2]+0.05), position = 1),
         yaxis3 = list(title = "Win Probability", overlaying = "y", side = "left",
