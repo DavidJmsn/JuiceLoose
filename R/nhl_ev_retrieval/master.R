@@ -305,8 +305,20 @@ retrieve_nhl_scores <- function(dates = NULL, save_file = TRUE) {
   init_logging("scores")
   check_delay_arg()
   ensure_directories()
-  
-  # Parse dates
+
+  # Custom default dates: yesterday only
+  if (is.null(dates)) {
+    args <- commandArgs(trailingOnly = TRUE)
+    args <- setdiff(args, c("scores", "delay"))
+
+    if (length(args) > 0) {
+      dates <- args
+    } else {
+      dates <- Sys.Date() - 1
+      log_message("No dates specified, using yesterday's date", "INFO")
+    }
+  }
+
   dates <- parse_date_args(dates)
   
   log_message(sprintf("=== NHL Scores Retrieval for %d dates ===", length(dates)), "INFO")
