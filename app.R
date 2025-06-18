@@ -691,22 +691,6 @@ server <- function(input, output, session) {
         ) %>%
         add_trace(
           data = tm_data,
-          x = ~hours_to_game, y = ~expected_value,
-          type = "scatter", mode = "lines+markers",
-          line = list(color = col, dash = "dash", shape = "hv"),
-          marker = list(color = col),
-          hoverlabel = list(bgcolor = col),
-          hoverinfo = "text",
-          hovertext = ~paste0('<b>Team:</b> ', team,
-                              '<br><b>EV:</b> ', round(expected_value, 2),
-                              '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)),
-          name = paste(tm, "EV"),
-          yaxis = "y2",
-          visible = FALSE,
-          showlegend = FALSE
-        ) %>%
-        add_trace(
-          data = tm_data,
           x = ~hours_to_game, y = ~price,
           type = "scatter", mode = "lines+markers",
           line = list(color = col, dash = "dot", shape = "hv"),
@@ -717,7 +701,7 @@ server <- function(input, output, session) {
                               '<br><b>Line:</b> ', round(price, 2),
                               '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)),
           name = paste(tm, "Line"),
-          yaxis = "y3",
+          yaxis = "y2",
           visible = FALSE,
           showlegend = FALSE
         ) %>%
@@ -733,14 +717,14 @@ server <- function(input, output, session) {
                               '<br><b>Win Prob:</b> ', round(win_probability, 2),
                               '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)),
           name = paste(tm, "Win Prob"),
-          yaxis = "y4",
+          yaxis = "y3",
           visible = FALSE,
           showlegend = FALSE
         )
     }
 
     n_teams <- length(unique(game_data$team))
-    n_traces_per_team <- 4
+    n_traces_per_team <- 3
     total_traces <- n_teams * n_traces_per_team
     vis_kc_only <- rep(FALSE, total_traces)
     vis_kc_price <- rep(FALSE, total_traces)
@@ -748,8 +732,8 @@ server <- function(input, output, session) {
     for (i in 0:(n_teams - 1)) {
       base <- i * n_traces_per_team
       vis_kc_only[base + 1] <- TRUE
-      vis_kc_price[base + c(1,3)] <- TRUE
-      vis_kc_winprob[base + c(1,4)] <- TRUE
+      vis_kc_price[base + c(1,2)] <- TRUE
+      vis_kc_winprob[base + c(1,3)] <- TRUE
     }
 
     # x_rng <- range(game_data$hours_to_game)
@@ -804,9 +788,8 @@ server <- function(input, output, session) {
         ),
         yaxis = list(title = "Kelly Criterion",
                      range = c(y_rng[1]-0.05, y_rng[2]+0.05)),
-        yaxis2 = list(title = "Expected Value", overlaying = "y", side = "right", position = 1, anchor = "free"),
-        yaxis3 = list(title = "Line", overlaying = "y", side = "left"),
-        yaxis4 = list(title = "Win Probability", overlaying = "y", side = "right", range = c(0, 1), position = 0.95),
+        yaxis2 = list(title = "Line", overlaying = "y", side = "left"),
+        yaxis3 = list(title = "Win Probability", overlaying = "y", side = "right", range = c(0, 1), position = 0.95),
         legend = list(title = list(text = "Team"), x = 0.02, y = 0.02),
         margin = list(r = 50),
         shapes = shapes,
