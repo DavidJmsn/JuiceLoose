@@ -686,6 +686,7 @@ server <- function(input, output, session) {
                               '<br><b>Win Prob:</b> ', round(win_probability, 2),
                               '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)),
           name = paste(tm, "KC"),
+          yaxis = "y2",
           visible = TRUE,
           showlegend = TRUE
         ) %>%
@@ -701,7 +702,7 @@ server <- function(input, output, session) {
                               '<br><b>Line:</b> ', round(price, 2),
                               '<br><b>Hours to game:</b> ', round(-hours_to_game, 1)),
           name = paste(tm, "Line"),
-          yaxis = "y2",
+          yaxis = "y",
           visible = FALSE,
           showlegend = FALSE
         ) %>%
@@ -746,7 +747,7 @@ server <- function(input, output, session) {
     shapes <- list()
     if (kc_range[1] < 0) {
       shapes <- c(shapes, list(list(
-        type = "rect", xref = "x", yref = "y", layer = "below",
+        type = "rect", xref = "x", yref = "y2", layer = "below",
         x0 = min(x_rng), x1 = 0,
         y0 = kc_range[1], y1 = min(0, kc_range[2]),
         fillcolor = "rgba(255,0,0,0.15)", line = list(width = 0)
@@ -754,7 +755,7 @@ server <- function(input, output, session) {
     }
     if (kc_range[2] > 0) {
       shapes <- c(shapes, list(list(
-        type = "rect", xref = "x", yref = "y", layer = "below",
+        type = "rect", xref = "x", yref = "y2", layer = "below",
         x0 = min(x_rng), x1 = 0,
         y0 = max(0, kc_range[1]), y1 = min(0.05, kc_range[2]),
         fillcolor = "rgba(255,165,0,0.15)", line = list(width = 0)
@@ -762,7 +763,7 @@ server <- function(input, output, session) {
     }
     if (kc_range[2] > 0.05) {
       shapes <- c(shapes, list(list(
-        type = "rect", xref = "x", yref = "y", layer = "below",
+        type = "rect", xref = "x", yref = "y2", layer = "below",
         x0 = min(x_rng), x1 = 0,
         y0 = max(0.05, kc_range[1]), y1 = min(0.1, kc_range[2]),
         fillcolor = "rgba(255,255,0,0.15)", line = list(width = 0)
@@ -770,7 +771,7 @@ server <- function(input, output, session) {
     }
     if (kc_range[2] > 0.1) {
       shapes <- c(shapes, list(list(
-        type = "rect", xref = "x", yref = "y", layer = "below",
+        type = "rect", xref = "x", yref = "y2", layer = "below",
         x0 = min(x_rng), x1 = 0,
         y0 = max(0.1, kc_range[1]), y1 = kc_range[2],
         fillcolor = "rgba(0,128,0,0.15)", line = list(width = 0)
@@ -786,12 +787,13 @@ server <- function(input, output, session) {
           zerolinecolor = "#CCCCCC",
           zerolinewidth = 3
         ),
-        yaxis = list(title = "Kelly Criterion",
-                     range = c(y_rng[1]-0.05, y_rng[2]+0.05)),
-        yaxis2 = list(title = "Line", overlaying = "y", side = "left"),
-        yaxis3 = list(title = "Win Probability", overlaying = "y", side = "right", range = c(0, 1), position = 0.95),
+        yaxis = list(title = "Line", side = "left", position = 0),
+        yaxis2 = list(title = "Kelly Criterion", overlaying = "y", side = "right",
+                     range = c(y_rng[1]-0.05, y_rng[2]+0.05), position = 1),
+        yaxis3 = list(title = "Win Probability", overlaying = "y", side = "left",
+                      range = c(0, 1), position = 0.05),
         legend = list(title = list(text = "Team"), x = 0.02, y = 0.02),
-        margin = list(r = 50),
+        margin = list(l = 60, r = 50),
         shapes = shapes,
         updatemenus = list(
           list(
