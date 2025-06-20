@@ -212,7 +212,6 @@ parse_espn_games <- function(events_data, date, sport_info) {
   
   # Process each event
   for (i in seq_along(events_data$items[["$ref"]])) {
-    print(i)
     if(sport_info$name == "MLB"){
       event_url <- events_data[["items"]][["$ref"]][[i]][1]
     } else {
