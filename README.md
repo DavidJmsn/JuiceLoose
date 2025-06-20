@@ -1,8 +1,8 @@
 # JuiceLoose
 
-JuiceLoose provides scripts to collect NHL betting data and a Shiny dashboard
-for exploring expected value metrics. Data can be stored locally or pushed to
-Google BigQuery for use on Posit Connect.
+JuiceLoose provides scripts to collect betting data from the NHL API and ESPN,
+along with a Shiny dashboard for exploring expected value metrics. Data can be
+stored locally or pushed to Google BigQuery for use on Posit Connect.
 
 ## Requirements
 - R 4.0 or later
@@ -17,7 +17,8 @@ Google BigQuery for use on Posit Connect.
 
 ## Usage
 1. Install R package dependencies listed in `manifest.json`.
-2. Retrieve data using the scripts in `R/nhl_ev_retrieval`.
+2. Retrieve data using the scripts in `R/nhl_ev_retrieval` and
+   `R/espn_ev_retrieval`. These scripts fetch schedule and odds data from ESPN and compute expected value metrics.
 3. Launch the dashboard with `Rscript app.R` or run the file inside an
    interactive R session.
 
