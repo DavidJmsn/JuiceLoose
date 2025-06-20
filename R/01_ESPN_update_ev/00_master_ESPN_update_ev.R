@@ -469,50 +469,18 @@ retrieve_espn_expected_values <- function(manual_dates = NULL, sport = "NBA") {
       ) %>%
       filter(!is.na(win_probability))  # Only keep rows with win probabilities
   } else {
-    # Use rolling join similar to MLB but with tolerance on rounded start times
-    h2h_odds <- h2h_odds %>%
-      mutate(
-        game_datetime_round = as.numeric(
-          lubridate::round_date(as.POSIXct(game_datetime, origin = "1970-01-01", tz = "UTC"),
-                                unit = "hour")
-        )
-      )
-    games_key <- games_key %>%
-      mutate(
-        game_datetime_round = as.numeric(
-          lubridate::round_date(as.POSIXct(game_datetime, origin = "1970-01-01", tz = "UTC"),
-                                unit = "hour")
-        )
-      )
-
-    h2h_odds_dt <- as.data.table(h2h_odds)
-    games_key_dt <- as.data.table(games_key)
-
-    setkey(h2h_odds_dt,  home_team_full, away_team_full, game_date, game_datetime_round)
-    setkey(games_key_dt, home_team_full, away_team_full, game_date, game_datetime_round)
-
-    joined <- data.frame(
-      games_key_dt[h2h_odds_dt,
-                   on = .(
-                     home_team_full,
-                     away_team_full,
-                     game_date,
-                     game_datetime_round
-                   ),
-                   roll = "nearest"]
-    )
-
-    joined <- joined %>%
-      filter(abs(game_datetime - i.game_datetime) <= 2 * 3600) %>%
-      select(-game_datetime_round, -i.game_datetime_round)
-
-    final_data <- joined %>%
+    # Merge win probabilities with odds
+    final_data <- h2h_odds %>%
+      left_join(
+        games_key,
+        by = c("home_team_full", 'away_team_full', "game_date")
+      ) %>%
       left_join(
         win_prob_data,
         by = c("name" = "team", "game_date" = "date", "game_id"),
         suffix = c("_odds", "_wp")
       ) %>%
-      filter(!is.na(win_probability))  # Only keep rows with win probabilities
+      filter(!is.na(win_probability))  # Only keep rows with win probabilities 
   }
   
   # CALCULATE EXPECTED VALUES --------------------------------------------------
