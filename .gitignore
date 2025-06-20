@@ -122,3 +122,5 @@ app/
 
 app_restored.R
 R/nhl_ev_retrieval/app.R
+
+.active-rstudio-document
