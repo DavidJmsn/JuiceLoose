@@ -117,3 +117,8 @@ data/NHL_backup_2025-06-15/win_probability/nhl_win_probabilities_retrieval.log
 data/update_summary_20250530_213222.csv
 app_old.R
 R/.DS_Store
+
+app/
+
+app_restored.R
+R/nhl_ev_retrieval/app.R
