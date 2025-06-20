@@ -477,8 +477,7 @@ retrieve_espn_expected_values <- function(manual_dates = NULL, sport = "NBA") {
     setkey(h2h_odds_dt,  home_team_full, away_team_full, game_date, game_datetime)
     setkey(games_key_dt, home_team_full, away_team_full, game_date, game_datetime)
 
-    joined <- data.frame(
-      games_key_dt[h2h_odds_dt,
+    joined_dt <- games_key_dt[h2h_odds_dt,
                    on = .(
                      home_team_full,
                      away_team_full,
@@ -486,10 +485,12 @@ retrieve_espn_expected_values <- function(manual_dates = NULL, sport = "NBA") {
                      game_datetime
                    ),
                    roll = "nearest"]
-    )
 
-    joined <- joined %>%
-      filter(abs(game_datetime - i.game_datetime) <= 2 * 3600)
+    # Preserve the original odds start time for tolerance filtering
+    joined_dt[, game_datetime_odds := i.game_datetime]
+
+    joined <- joined_dt[abs(game_datetime - game_datetime_odds) <= 2 * 3600]
+    joined <- as.data.frame(joined)
 
     final_data <- joined %>%
       left_join(
