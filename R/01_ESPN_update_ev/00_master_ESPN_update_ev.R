@@ -469,18 +469,36 @@ retrieve_espn_expected_values <- function(manual_dates = NULL, sport = "NBA") {
       ) %>%
       filter(!is.na(win_probability))  # Only keep rows with win probabilities
   } else {
-    # Merge win probabilities with odds
-    final_data <- h2h_odds %>%
-      left_join(
-        games_key,
-        by = c("home_team_full", 'away_team_full', "game_date")
-      ) %>%
+    # Perform a rolling join similar to the NHL master script
+    # Restrict matches to start times within two hours of the scheduled game
+    h2h_odds_dt <- as.data.table(h2h_odds)
+    games_key_dt <- as.data.table(games_key)
+
+    setkey(h2h_odds_dt,  home_team_full, away_team_full, game_date, game_datetime)
+    setkey(games_key_dt, home_team_full, away_team_full, game_date, game_datetime)
+
+    joined_dt <- games_key_dt[h2h_odds_dt,
+                   on = .(
+                     home_team_full,
+                     away_team_full,
+                     game_date,
+                     game_datetime
+                   ),
+                   roll = "nearest"]
+
+    # Preserve the original odds start time for tolerance filtering
+    joined_dt[, game_datetime_odds := i.game_datetime]
+
+    joined <- joined_dt[abs(game_datetime - game_datetime_odds) <= 2 * 3600]
+    joined <- as.data.frame(joined)
+
+    final_data <- joined %>%
       left_join(
         win_prob_data,
         by = c("name" = "team", "game_date" = "date", "game_id"),
         suffix = c("_odds", "_wp")
       ) %>%
-      filter(!is.na(win_probability))  # Only keep rows with win probabilities 
+      filter(!is.na(win_probability))  # Only keep rows with win probabilities
   }
   
   # CALCULATE EXPECTED VALUES --------------------------------------------------
