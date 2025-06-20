@@ -397,7 +397,7 @@ retrieve_espn_expected_values <- function(manual_dates = NULL, sport = "NBA") {
     games %>%
       filter(!is.na(home_win_prob)) %>%
       mutate(
-        team = ifelse(sport == "MLB", gsub("ATHLETICS ATHLETICS", "OAKLAND ATHLETICS", ,clean_team_name(home_team_full)), clean_team_name(home_team_full)),
+        team = ifelse(sport == "MLB", gsub("ATHLETICS ATHLETICS", "OAKLAND ATHLETICS", clean_team_name(home_team_full)), clean_team_name(home_team_full)),
         opponent = ifelse(sport == "MLB", gsub("ATHLETICS ATHLETICS", "OAKLAND ATHLETICS", clean_team_name(away_team_full)),clean_team_name(away_team_full)),
         win_probability = home_win_prob / 100,  # Convert percentage to decimal
         is_home = TRUE
@@ -422,7 +422,7 @@ retrieve_espn_expected_values <- function(manual_dates = NULL, sport = "NBA") {
       home_team = clean_team_name(home_team),
       away_team = clean_team_name(away_team),
       home_team_full = ifelse(sport == "MLB", gsub("ATHLETICS ATHLETICS", "OAKLAND ATHLETICS", clean_team_name(home_team_full)),clean_team_name(home_team_full)),       
-      away_team_full = ifelse(sport == "MLB", gsub("ATHLETICS ATHLETICS", "OAKLAND ATHLETICS", clean_team_name(away_team_full)),clean_team_name(home_team_full)),
+      away_team_full = ifelse(sport == "MLB", gsub("ATHLETICS ATHLETICS", "OAKLAND ATHLETICS", clean_team_name(away_team_full)),clean_team_name(away_team_full)),
       game_datetime = as.numeric(as.POSIXct(start_time_utc, tz = "UTC"))
     )
   
