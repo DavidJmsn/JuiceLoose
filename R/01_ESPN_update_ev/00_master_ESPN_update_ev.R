@@ -469,27 +469,13 @@ retrieve_espn_expected_values <- function(manual_dates = NULL, sport = "NBA") {
       ) %>%
       filter(!is.na(win_probability))  # Only keep rows with win probabilities
   } else {
-    # Use rolling join similar to MLB but with tolerance on rounded start times
-    h2h_odds <- h2h_odds %>%
-      mutate(
-        game_datetime_round = as.numeric(
-          lubridate::round_date(as.POSIXct(game_datetime, origin = "1970-01-01", tz = "UTC"),
-                                unit = "hour")
-        )
-      )
-    games_key <- games_key %>%
-      mutate(
-        game_datetime_round = as.numeric(
-          lubridate::round_date(as.POSIXct(game_datetime, origin = "1970-01-01", tz = "UTC"),
-                                unit = "hour")
-        )
-      )
-
+    # Perform a rolling join similar to the NHL master script
+    # Restrict matches to start times within two hours of the scheduled game
     h2h_odds_dt <- as.data.table(h2h_odds)
     games_key_dt <- as.data.table(games_key)
 
-    setkey(h2h_odds_dt,  home_team_full, away_team_full, game_date, game_datetime_round)
-    setkey(games_key_dt, home_team_full, away_team_full, game_date, game_datetime_round)
+    setkey(h2h_odds_dt,  home_team_full, away_team_full, game_date, game_datetime)
+    setkey(games_key_dt, home_team_full, away_team_full, game_date, game_datetime)
 
     joined <- data.frame(
       games_key_dt[h2h_odds_dt,
@@ -497,14 +483,13 @@ retrieve_espn_expected_values <- function(manual_dates = NULL, sport = "NBA") {
                      home_team_full,
                      away_team_full,
                      game_date,
-                     game_datetime_round
+                     game_datetime
                    ),
                    roll = "nearest"]
     )
 
     joined <- joined %>%
-      filter(abs(game_datetime - i.game_datetime) <= 2 * 3600) %>%
-      select(-game_datetime_round, -i.game_datetime_round)
+      filter(abs(game_datetime - i.game_datetime) <= 2 * 3600)
 
     final_data <- joined %>%
       left_join(
