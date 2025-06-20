@@ -1,0 +1,16 @@
+{
+  "id": "game1",
+  "date": "2025-01-01T01:00:00Z",
+  "competitions": [
+    {
+      "competitors": [
+        {"team": {"displayName": "Boston Celtics"}, "homeAway": "away"},
+        {"team": {"displayName": "New York Knicks"}, "homeAway": "home"}
+      ]
+    }
+  ],
+  "predictor": {
+    "homeTeam": {"gameProjection": 60},
+    "awayTeam": {"gameProjection": 40}
+  }
+}
