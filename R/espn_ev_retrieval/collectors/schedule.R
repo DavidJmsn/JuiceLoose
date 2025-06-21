@@ -51,7 +51,7 @@ build_events_endpoint <- function(date, sport_config) {
 #' @return List with home_starter and away_starter
 extract_starters <- function(competitors, sport) {
   starters <- list(home_starter = NA_character_, away_starter = NA_character_)
-  
+
   if (is.null(competitors) || length(competitors) < 2) {
     return(starters)
   }
@@ -90,6 +90,46 @@ extract_starters <- function(competitors, sport) {
   return(starters)
 }
 
+#' Convert a data.frame of nested resources to a list of row-wise lists
+#' @param x object that may be a data.frame or list
+#' @return list of row-wise lists or the original object if not a data.frame
+df_to_row_list <- function(x) {
+  if (!is.data.frame(x)) return(x)
+  lapply(seq_len(nrow(x)), function(i) {
+    row <- x[i, , drop = FALSE]
+    lapply(row, function(col) {
+      if (is.data.frame(col) && nrow(col) == 1) as.list(col[1, , drop = TRUE]) else col
+    })
+  })
+}
+
+#' Safely fetch a team's display name
+#' @param team_obj team object which may only contain a `$ref`
+#' @return character display name or NA
+get_team_name <- function(team_obj) {
+  if (is.null(team_obj)) return(NA_character_)
+  if (!is.null(team_obj$displayName)) return(team_obj$displayName)
+  if (!is.null(team_obj$`$ref`)) {
+    team_data <- api_get(team_obj$`$ref`, api_type = "espn", use_cache = TRUE)
+    if (!is.null(team_data$displayName)) return(team_data$displayName)
+  }
+  NA_character_
+}
+
+#' Safely fetch score value if provided via reference
+#' @param score_obj score object or numeric value
+#' @return integer score or NA
+get_score_value <- function(score_obj) {
+  if (is.null(score_obj)) return(NA_integer_)
+  if (is.numeric(score_obj)) return(as.integer(score_obj))
+  if (is.list(score_obj) && !is.null(score_obj$value)) return(as.integer(score_obj$value))
+  if (is.list(score_obj) && !is.null(score_obj$`$ref`)) {
+    score_data <- api_get(score_obj$`$ref`, api_type = "espn", use_cache = TRUE)
+    if (!is.null(score_data$value)) return(as.integer(score_data$value))
+  }
+  NA_integer_
+}
+
 #' Parse ESPN events response
 #' @param events_data Raw events API response
 #' @param sport Sport name
@@ -126,18 +166,23 @@ parse_espn_events <- function(events_data, sport) {
     
     if (is.null(event_data) || is.null(event_data$competitions)) next
     
-    comp <- event_data$competitions[[1]]
-    
-    if (is.null(comp$competitors) || length(comp$competitors) < 2) next
-    
-    # Identify home and away teams
-    home_idx <- which(sapply(comp$competitors, function(x) x$homeAway == "home"))
-    away_idx <- which(sapply(comp$competitors, function(x) x$homeAway == "away"))
-    
+    comp <- event_data$competitions
+    if (is.data.frame(comp)) {
+      comp <- as.list(comp[1, , drop = TRUE])
+    } else if (is.list(comp)) {
+      comp <- comp[[1]]
+    }
+
+    competitors <- df_to_row_list(comp$competitors)
+    if (is.null(competitors) || length(competitors) < 2) next
+
+    home_idx <- which(vapply(competitors, function(x) x$homeAway, character(1)) == "home")
+    away_idx <- which(vapply(competitors, function(x) x$homeAway, character(1)) == "away")
+
     if (length(home_idx) == 0 || length(away_idx) == 0) next
-    
-    home <- comp$competitors[[home_idx]]
-    away <- comp$competitors[[away_idx]]
+
+    home <- competitors[[home_idx[1]]]
+    away <- competitors[[away_idx[1]]]
     
     # Extract starters
     starters <- extract_starters(comp$competitors, sport)
@@ -148,11 +193,11 @@ parse_espn_events <- function(events_data, sport) {
       sport = sport,
       game_date = as.Date(event_data$date),
       game_time = format(as.POSIXct(event_data$date, tz = "UTC"), format = "%H:%M", tz = "America/New_York"),
-      home_team = standardize_team_name(home$team$displayName),
-      away_team = standardize_team_name(away$team$displayName),
+      home_team = standardize_team_name(get_team_name(home$team)),
+      away_team = standardize_team_name(get_team_name(away$team)),
       home_score = NA_integer_,
       away_score = NA_integer_,
-      game_state = comp$status$type$name,
+      game_state = if (!is.null(comp$status$type$name)) comp$status$type$name else NA_character_,
       venue = ifelse(!is.null(comp$venue$fullName), comp$venue$fullName, NA_character_),
       broadcast = NA_character_,
       home_win_prob = NA_real_,
@@ -162,24 +207,31 @@ parse_espn_events <- function(events_data, sport) {
     )
     
     # Extract scores for completed games
-    if (comp$status$type$completed) {
-      game_dt$home_score <- as.integer(home$score)
-      game_dt$away_score <- as.integer(away$score)
+    if (!is.null(comp$status$type$completed) && isTRUE(comp$status$type$completed)) {
+      game_dt$home_score <- get_score_value(home$score)
+      game_dt$away_score <- get_score_value(away$score)
     }
     
     # Extract broadcast info
-    if (!is.null(comp$broadcasts) && length(comp$broadcasts) > 0) {
-      broadcasts <- sapply(comp$broadcasts, function(x) x$media$shortName)
-      game_dt$broadcast <- paste(broadcasts, collapse = ", ")
+    if (!is.null(comp$broadcasts)) {
+      broadcasts <- df_to_row_list(comp$broadcasts)
+      if (length(broadcasts) > 0) {
+        names <- vapply(broadcasts, function(x) x$media$shortName, character(1), USE.NAMES = FALSE)
+        game_dt$broadcast <- paste(names, collapse = ", ")
+      }
     }
     
     # Extract win probabilities from predictor
     if (!is.null(event_data$predictor)) {
-      if (!is.null(event_data$predictor$homeTeam$gameProjection)) {
-        game_dt$home_win_prob <- event_data$predictor$homeTeam$gameProjection / 100
+      predictor <- event_data$predictor
+      if (!is.null(predictor$`$ref`)) {
+        predictor <- api_get(predictor$`$ref`, api_type = "espn", use_cache = TRUE)
       }
-      if (!is.null(event_data$predictor$awayTeam$gameProjection)) {
-        game_dt$away_win_prob <- event_data$predictor$awayTeam$gameProjection / 100
+      if (!is.null(predictor$homeTeam$gameProjection)) {
+        game_dt$home_win_prob <- predictor$homeTeam$gameProjection / 100
+      }
+      if (!is.null(predictor$awayTeam$gameProjection)) {
+        game_dt$away_win_prob <- predictor$awayTeam$gameProjection / 100
       }
     }
     
