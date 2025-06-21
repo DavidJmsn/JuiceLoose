@@ -25,6 +25,12 @@ stored locally or pushed to Google BigQuery for use on Posit Connect.
 Additional scripts for downloading team metadata are documented in
 `R/update_team_metadata/README.md`.
 
+### ESPN schedule
+
+`collect_espn_schedule()` now handles competitor entries where the team
+object only includes a `$ref` link. The collector fetches the referenced
+team resource so that names are parsed correctly in the results.
+
 ## API quota usage
 
 `APIClient$get` logs the remaining quota information returned by the NHL API.
