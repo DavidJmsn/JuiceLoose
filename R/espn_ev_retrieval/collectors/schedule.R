@@ -99,13 +99,25 @@ parse_espn_events <- function(events_data, sport) {
     log_message("No events found in response", "DEBUG")
     return(data.table())
   }
-  
-  log_message(sprintf("Processing %d events", length(events_data$items)), "DEBUG")
-  
+
+  # `events_data$items` can come back either as a list of items or a data.frame
+  # (when there is only a single event).  Handle both representations and
+  # extract the `$ref` links cleanly.
+  items <- events_data$items
+  if (is.data.frame(items)) {
+    event_refs <- items$`$ref`
+  } else if (is.list(items)) {
+    event_refs <- vapply(items, function(x) x$`$ref`, character(1))
+  } else {
+    log_message("Unknown events structure returned by API", "WARN")
+    return(data.table())
+  }
+
+  log_message(sprintf("Processing %d events", length(event_refs)), "DEBUG")
+
   games_list <- list()
-  
-  for (i in seq_along(events_data$items)) {
-    event_ref <- events_data$items[[i]]$`$ref`
+
+  for (event_ref in event_refs) {
     
     if (is.null(event_ref)) next
     
