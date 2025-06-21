@@ -173,11 +173,37 @@ parse_espn_events <- function(events_data, sport) {
       comp <- comp[[1]]
     }
 
-    competitors <- df_to_row_list(comp$competitors)
-    if (is.null(competitors) || length(competitors) < 2) next
+    # Normalise competitors structure which occasionally comes back as a
+    # data.frame or list of data.frames.  Convert to a list of plain lists
+    # representing each team in the competition.
+    competitors <- comp$competitors
+    if (is.data.frame(competitors)) {
+      competitors <- df_to_row_list(competitors)
+    } else if (is.list(competitors)) {
+      competitors <- lapply(competitors, function(x) {
+        if (is.data.frame(x)) {
+          if (nrow(x) > 0) as.list(x[1, , drop = TRUE]) else list()
+        } else {
+          x
+        }
+      })
+    } else {
+      competitors <- list()
+    }
 
-    home_idx <- which(vapply(competitors, function(x) x$homeAway, character(1)) == "home")
-    away_idx <- which(vapply(competitors, function(x) x$homeAway, character(1)) == "away")
+    if (length(competitors) < 2) next
+
+    # Safely locate home and away competitors.  Some malformed responses have
+    # duplicated values resulting in vectors of length > 1.  Only the first
+    # value is considered in that case.
+    get_side <- function(x) {
+      val <- x$homeAway
+      if (is.null(val) || length(val) == 0) return(NA_character_)
+      as.character(val[1])
+    }
+
+    home_idx <- which(vapply(competitors, get_side, character(1)) == "home")
+    away_idx <- which(vapply(competitors, get_side, character(1)) == "away")
 
     if (length(home_idx) == 0 || length(away_idx) == 0) next
 
@@ -185,7 +211,7 @@ parse_espn_events <- function(events_data, sport) {
     away <- competitors[[away_idx[1]]]
     
     # Extract starters
-    starters <- extract_starters(comp$competitors, sport)
+    starters <- extract_starters(competitors, sport)
     
     # Parse game data
     game_dt <- data.table(
