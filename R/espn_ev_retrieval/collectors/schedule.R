@@ -177,16 +177,21 @@ parse_espn_events <- function(events_data, sport) {
     # data.frame or list of data.frames.  Convert to a list of plain lists
     # representing each team in the competition.
     competitors <- comp$competitors
+
     if (is.data.frame(competitors)) {
       competitors <- df_to_row_list(competitors)
     } else if (is.list(competitors)) {
-      competitors <- lapply(competitors, function(x) {
-        if (is.data.frame(x)) {
-          if (nrow(x) > 0) as.list(x[1, , drop = TRUE]) else list()
-        } else {
-          x
-        }
-      })
+      if (length(competitors) == 1 && is.data.frame(competitors[[1]])) {
+        competitors <- df_to_row_list(competitors[[1]])
+      } else {
+        competitors <- lapply(competitors, function(x) {
+          if (is.data.frame(x)) {
+            df_to_row_list(x)[[1]]
+          } else {
+            x
+          }
+        })
+      }
     } else {
       competitors <- list()
     }

@@ -23,3 +23,20 @@ with_mock(api_get = mock_api, {
     expect_equal(res$away_win_prob, 0.40)
   })
 })
+
+# competitors wrapped in an extra list
+wrapped_event <- event_data
+wrapped_event$competitions[[1]]$competitors <- list(as.data.frame(wrapped_event$competitions[[1]]$competitors))
+
+mock_api2 <- function(endpoint, api_type="espn", query=list(), use_cache=TRUE) {
+  wrapped_event
+}
+
+with_mock(api_get = mock_api2, {
+  res <- parse_espn_events(events, "NBA")
+  test_that('parse_espn_events handles wrapped competitors', {
+    expect_equal(nrow(res), 1)
+    expect_equal(res$home_team, 'NEW YORK KNICKS')
+    expect_equal(res$away_team, 'BOSTON CELTICS')
+  })
+})
