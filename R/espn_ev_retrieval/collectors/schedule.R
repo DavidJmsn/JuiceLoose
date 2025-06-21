@@ -247,8 +247,19 @@ parse_espn_events <- function(events_data, sport) {
     if (!is.null(comp$broadcasts)) {
       broadcasts <- df_to_row_list(comp$broadcasts)
       if (length(broadcasts) > 0) {
-        names <- vapply(broadcasts, function(x) x$media$shortName, character(1), USE.NAMES = FALSE)
-        game_dt$broadcast <- paste(names, collapse = ", ")
+        names <- vapply(broadcasts, function(x) {
+          if (!is.null(x$media) && length(x$media$shortName) > 0) {
+            x$media$shortName[[1]]
+          } else if (!is.null(x$names) && length(x$names) > 0) {
+            x$names[[1]]
+          } else {
+            NA_character_
+          }
+        }, character(1), USE.NAMES = FALSE)
+        names <- names[!is.na(names) & nzchar(names)]
+        if (length(names) > 0) {
+          game_dt$broadcast <- paste(names, collapse = ", ")
+        }
       }
     }
     
