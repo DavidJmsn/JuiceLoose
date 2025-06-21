@@ -96,10 +96,32 @@ extract_starters <- function(competitors, sport) {
 df_to_row_list <- function(x) {
   if (!is.data.frame(x)) return(x)
   lapply(seq_len(nrow(x)), function(i) {
-    row <- x[i, , drop = FALSE]
-    lapply(row, function(col) {
-      if (is.data.frame(col) && nrow(col) == 1) as.list(col[1, , drop = TRUE]) else col
-    })
+    row <- as.list(x[i, , drop = FALSE])
+    out <- list()
+    for (nm in names(row)) {
+      value <- row[[nm]]
+      # Collapse flattened team columns like "team.$ref" into a nested list
+      if (grepl("^team\\.", nm)) {
+        sub_nm <- sub("^team\\.", "", nm)
+        if (is.null(out$team)) out$team <- list()
+        if (is.data.frame(value) && nrow(value) == 1) {
+          tmp <- as.list(value[1, , drop = TRUE])
+          if (ncol(value) == 1) names(tmp) <- names(value)
+          out$team[[sub_nm]] <- tmp
+        } else {
+          out$team[[sub_nm]] <- value
+        }
+      } else {
+        if (is.data.frame(value) && nrow(value) == 1) {
+          tmp <- as.list(value[1, , drop = TRUE])
+          if (ncol(value) == 1) names(tmp) <- names(value)
+          out[[nm]] <- tmp
+        } else {
+          out[[nm]] <- value
+        }
+      }
+    }
+    out
   })
 }
 
@@ -169,6 +191,7 @@ parse_espn_events <- function(events_data, sport) {
     comp <- event_data$competitions
     if (is.data.frame(comp)) {
       comp <- as.list(comp[1, , drop = TRUE])
+      names(comp) <- names(event_data$competitions)
     } else if (is.list(comp)) {
       comp <- comp[[1]]
     }
