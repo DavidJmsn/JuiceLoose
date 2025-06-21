@@ -1,0 +1,16 @@
+{
+  "id": "game1",
+  "date": "2025-01-01T01:00:00Z",
+  "competitions": [
+    {
+      "competitors": [
+        {"team": {"$ref": "away_team.json"}, "homeAway": "away"},
+        {"team": {"$ref": "home_team.json"}, "homeAway": "home"}
+      ]
+    }
+  ],
+  "predictor": {
+    "homeTeam": {"gameProjection": 60},
+    "awayTeam": {"gameProjection": 40}
+  }
+}
