@@ -1,103 +1,305 @@
-# ESPN SCHEDULE COLLECTOR --------------------------------------------------
-# Purpose: collect schedule and win probabilities for various sports
-# Author: OpenAI ChatGPT
-# Last Updated: 2025-06-20
+# ESPN SCHEDULE AND SCORES COLLECTOR --------------------------------------
+# Purpose: Efficiently collect ESPN schedule, scores, and win probabilities
+# Author: Professional implementation with data.table
+# Last Updated: 2025-06-21
 
 suppressPackageStartupMessages({
   library(data.table)
+  library(lubridate)
   library(here)
 })
 
+# Source utilities using here()
 source(here("R", "espn_ev_retrieval", "utils", "common.R"))
 source(here("R", "espn_ev_retrieval", "utils", "api_client.R"))
 
-# Basic sport mapping ------------------------------------------------------
+# SPORT CONFIGURATION ------------------------------------------------------
 
-sport_map <- list(
-  NBA = list(sport = "basketball", league = "nba"),
-  NFL = list(sport = "football", league = "nfl"),
-  MLB = list(sport = "baseball", league = "mlb")
+sport_configs <- list(
+  NBA = list(
+    sport = "basketball",
+    league = "nba",
+    season_type = 2  # Regular season
+  ),
+  NFL = list(
+    sport = "football", 
+    league = "nfl",
+    season_type = 2  # Regular season
+  ),
+  MLB = list(
+    sport = "baseball",
+    league = "mlb",
+    season_type = 2  # Regular season
+  )
 )
 
-# Helper to build events endpoint
-build_events_endpoint <- function(date, sport_info) {
-  date_str <- format(as.Date(date), "%Y%m%d")
-  sprintf("/%s/leagues/%s/events?dates=%s&lang=en&region=us",
-          sport_info$sport, sport_info$league, date_str)
+# HELPER FUNCTIONS ---------------------------------------------------------
+
+#' Build ESPN events endpoint URL
+#' @param date Date to query
+#' @param sport_config Sport configuration
+#' @return Character URL endpoint
+build_events_endpoint <- function(date, sport_config) {
+  date_str <- format(as.Date(date), format = "%Y%m%d")
+  sprintf("/%s/leagues/%s/events?dates=%s&limit=100",
+          sport_config$sport, sport_config$league, date_str)
 }
 
-# Parse events JSON into data.table
-parse_espn_events <- function(events, sport) {
-  if (is.null(events) || length(events$items) == 0) return(data.table())
-
-  games <- list()
-  for (ev in events$items) {
-    ev_data <- api_get(ev$`$ref`, "espn")
-    if (is.null(ev_data)) next
-
-    comp <- ev_data$competitions[[1]]
-    if (is.null(comp$competitors) || length(comp$competitors) < 2) next
-
-    away <- comp$competitors[[1]]
-    home <- comp$competitors[[2]]
-    if (home$homeAway == "away") {
-      tmp <- home; home <- away; away <- tmp
+#' Extract starter information from competitors
+#' @param competitors List of competitor data
+#' @param sport Sport name
+#' @return List with home_starter and away_starter
+extract_starters <- function(competitors, sport) {
+  starters <- list(home_starter = NA_character_, away_starter = NA_character_)
+  
+  if (is.null(competitors) || length(competitors) < 2) {
+    return(starters)
+  }
+  
+  for (comp in competitors) {
+    if (is.null(comp$probables)) next
+    
+    # Extract based on sport
+    starter_name <- NA_character_
+    
+    if (sport == "MLB" && !is.null(comp$probables$playerId)) {
+      # MLB: Get probable pitcher
+      starter_name <- comp$probables$fullName[1]
+    } else if (sport == "NFL" && !is.null(comp$leaders)) {
+      # NFL: Get QB from leaders
+      qb_leader <- comp$leaders[comp$leaders$name == "passingLeader", ]
+      if (nrow(qb_leader) > 0) {
+        starter_name <- qb_leader$athlete$displayName[1]
+      }
+    } else if (sport == "NBA" && !is.null(comp$leaders)) {
+      # NBA: Get points leader as star player
+      pts_leader <- comp$leaders[comp$leaders$name == "pointsLeader", ]
+      if (nrow(pts_leader) > 0) {
+        starter_name <- pts_leader$athlete$displayName[1]
+      }
     }
+    
+    # Assign to correct team
+    if (comp$homeAway == "home") {
+      starters$home_starter <- starter_name
+    } else {
+      starters$away_starter <- starter_name
+    }
+  }
+  
+  return(starters)
+}
 
+#' Parse ESPN events response
+#' @param events_data Raw events API response
+#' @param sport Sport name
+#' @return data.table of parsed events
+parse_espn_events <- function(events_data, sport) {
+  if (is.null(events_data) || is.null(events_data$items) || length(events_data$items) == 0) {
+    log_message("No events found in response", "DEBUG")
+    return(data.table())
+  }
+  
+  log_message(sprintf("Processing %d events", length(events_data$items)), "DEBUG")
+  
+  games_list <- list()
+  
+  for (i in seq_along(events_data$items)) {
+    event_ref <- events_data$items[[i]]$`$ref`
+    
+    if (is.null(event_ref)) next
+    
+    # Fetch detailed event data
+    event_data <- api_get(event_ref, api_type = "espn", use_cache = TRUE)
+    
+    if (is.null(event_data) || is.null(event_data$competitions)) next
+    
+    comp <- event_data$competitions[[1]]
+    
+    if (is.null(comp$competitors) || length(comp$competitors) < 2) next
+    
+    # Identify home and away teams
+    home_idx <- which(sapply(comp$competitors, function(x) x$homeAway == "home"))
+    away_idx <- which(sapply(comp$competitors, function(x) x$homeAway == "away"))
+    
+    if (length(home_idx) == 0 || length(away_idx) == 0) next
+    
+    home <- comp$competitors[[home_idx]]
+    away <- comp$competitors[[away_idx]]
+    
+    # Extract starters
+    starters <- extract_starters(comp$competitors, sport)
+    
+    # Parse game data
     game_dt <- data.table(
-      game_id = ev_data$id,
+      game_id = as.character(event_data$id),
       sport = sport,
-      game_date = as.Date(ev_data$date),
-      game_time = format(as.POSIXct(ev_data$date, tz = "UTC"), "%H:%M", tz = "America/New_York"),
+      game_date = as.Date(event_data$date),
+      game_time = format(as.POSIXct(event_data$date, tz = "UTC"), format = "%H:%M", tz = "America/New_York"),
       home_team = standardize_team_name(home$team$displayName),
       away_team = standardize_team_name(away$team$displayName),
+      home_score = NA_integer_,
+      away_score = NA_integer_,
+      game_state = comp$status$type$name,
+      venue = ifelse(!is.null(comp$venue$fullName), comp$venue$fullName, NA_character_),
+      broadcast = NA_character_,
       home_win_prob = NA_real_,
-      away_win_prob = NA_real_
+      away_win_prob = NA_real_,
+      home_starter = starters$home_starter,
+      away_starter = starters$away_starter
     )
-
-    if (!is.null(ev_data$predictor$homeTeam$gameProjection)) {
-      game_dt$home_win_prob <- ev_data$predictor$homeTeam$gameProjection/100
+    
+    # Extract scores for completed games
+    if (comp$status$type$completed) {
+      game_dt$home_score <- as.integer(home$score)
+      game_dt$away_score <- as.integer(away$score)
     }
-    if (!is.null(ev_data$predictor$awayTeam$gameProjection)) {
-      game_dt$away_win_prob <- ev_data$predictor$awayTeam$gameProjection/100
+    
+    # Extract broadcast info
+    if (!is.null(comp$broadcasts) && length(comp$broadcasts) > 0) {
+      broadcasts <- sapply(comp$broadcasts, function(x) x$media$shortName)
+      game_dt$broadcast <- paste(broadcasts, collapse = ", ")
     }
-
-    # sport specific extras (placeholder fields)
-    if (!is.null(home$probables)) {
-      game_dt$home_starter <- home$probables[[1]]$athlete$displayName
+    
+    # Extract win probabilities from predictor
+    if (!is.null(event_data$predictor)) {
+      if (!is.null(event_data$predictor$homeTeam$gameProjection)) {
+        game_dt$home_win_prob <- event_data$predictor$homeTeam$gameProjection / 100
+      }
+      if (!is.null(event_data$predictor$awayTeam$gameProjection)) {
+        game_dt$away_win_prob <- event_data$predictor$awayTeam$gameProjection / 100
+      }
     }
-    if (!is.null(away$probables)) {
-      game_dt$away_starter <- away$probables[[1]]$athlete$displayName
-    }
-
-    games[[length(games)+1]] <- game_dt
+    
+    games_list[[length(games_list) + 1]] <- game_dt
   }
-
-  rbindlist(games, fill = TRUE)
+  
+  if (length(games_list) == 0) {
+    return(data.table())
+  }
+  
+  # Combine all games
+  games_dt <- rbindlist(games_list, fill = TRUE)
+  
+  # Validate probabilities
+  games_dt[home_win_prob + away_win_prob > 0, `:=`(
+    prob_sum = home_win_prob + away_win_prob
+  )]
+  
+  # Normalize if needed
+  games_dt[!is.na(prob_sum) & abs(prob_sum - 1) > 0.01, `:=`(
+    home_win_prob = home_win_prob / prob_sum,
+    away_win_prob = away_win_prob / prob_sum
+  )]
+  
+  games_dt[, prob_sum := NULL]
+  
+  return(games_dt)
 }
 
-# Main function ------------------------------------------------------------
+# MAIN COLLECTION FUNCTION -------------------------------------------------
 
+#' Collect ESPN schedule and scores data
+#' @param dates Vector of dates to collect
+#' @param sport Sport name ("NBA", "NFL", "MLB")
+#' @return data.table with schedule and scores
 collect_espn_schedule <- function(dates, sport = "NBA") {
+  log_message(sprintf("Starting %s schedule collection", sport), "INFO")
+  
+  # Validate sport
   sport <- toupper(sport)
-  if (!sport %in% names(sport_map)) {
-    stop("Unsupported sport: ", sport)
+  if (!sport %in% names(sport_configs)) {
+    log_message(sprintf("Invalid sport: %s", sport), "ERROR")
+    return(data.table())
   }
-
+  
+  sport_config <- sport_configs[[sport]]
+  
+  # Validate dates
   dates <- parse_date_args(dates)
-  sport_info <- sport_map[[sport]]
-
-  out <- list()
-  for (d in dates) {
-    endpoint <- build_events_endpoint(d, sport_info)
-    events <- api_get(endpoint, "espn")
-    if (is.null(events)) next
-    out[[length(out)+1]] <- parse_espn_events(events, sport)
+  
+  log_message(sprintf("Collecting %s schedule for %d dates", sport, length(dates)), "INFO")
+  
+  # Collect data for each date
+  all_games <- list()
+  
+  for (date in dates) {
+    date_str <- format(date, format = "%Y-%m-%d")
+    log_message(sprintf("Fetching %s games for %s", sport, date_str), "DEBUG")
+    
+    # Build endpoint
+    endpoint <- build_events_endpoint(date, sport_config)
+    
+    # API call
+    events_data <- api_get(endpoint, api_type = "espn", use_cache = TRUE)
+    
+    if (is.null(events_data)) {
+      log_message(sprintf("Failed to retrieve data for %s", date_str), "WARN")
+      next
+    }
+    
+    # Parse events
+    games_dt <- parse_espn_events(events_data, sport)
+    
+    if (nrow(games_dt) > 0) {
+      all_games[[length(all_games) + 1]] <- games_dt
+      log_message(sprintf("Found %d games on %s", nrow(games_dt), date_str), "DEBUG")
+    }
   }
-
-  if (length(out) == 0) return(data.table())
-  res <- rbindlist(out, fill = TRUE)
-  setorder(res, game_date, game_time)
-  res
+  
+  if (length(all_games) == 0) {
+    log_message("No games found for any date", "WARN")
+    return(data.table())
+  }
+  
+  # Combine all results
+  schedule_dt <- rbindlist(all_games, fill = TRUE)
+  
+  # Sort by date and time
+  setorder(schedule_dt, game_date, game_time)
+  
+  # Log summary
+  log_message(sprintf("Retrieved %d %s games across %d dates", 
+                      nrow(schedule_dt), sport, length(dates)), "SUCCESS")
+  
+  # Log games with probabilities
+  games_with_prob <- schedule_dt[!is.na(home_win_prob) | !is.na(away_win_prob)]
+  log_message(sprintf("Found win probabilities for %d games (%.1f%%)", 
+                      nrow(games_with_prob),
+                      100 * nrow(games_with_prob) / nrow(schedule_dt)), "INFO")
+  
+  # Validate data quality
+  validate_schedule_data(schedule_dt, sport)
+  
+  return(schedule_dt)
 }
 
+#' Validate schedule data
+#' @param dt data.table with schedule data
+#' @param sport Sport name
+validate_schedule_data <- function(dt, sport) {
+  # Check for duplicate games
+  dups <- dt[duplicated(dt[, .(game_date, home_team, away_team)])]
+  if (nrow(dups) > 0) {
+    log_message(sprintf("Found %d duplicate games", nrow(dups)), "WARN")
+  }
+  
+  # Check probability completeness
+  missing_prob <- dt[is.na(home_win_prob) & is.na(away_win_prob)]
+  if (nrow(missing_prob) > 0) {
+    log_message(sprintf("%d games missing win probabilities", nrow(missing_prob)), "DEBUG")
+  }
+  
+  # Sport-specific validation
+  if (sport == "MLB") {
+    missing_pitchers <- dt[is.na(home_starter) | is.na(away_starter)]
+    if (nrow(missing_pitchers) > 0) {
+      log_message(sprintf("%d games missing probable pitchers", nrow(missing_pitchers)), "DEBUG")
+    }
+  } else if (sport == "NFL") {
+    missing_qbs <- dt[is.na(home_starter) | is.na(away_starter)]
+    if (nrow(missing_qbs) > 0) {
+      log_message(sprintf("%d games missing starting QBs", nrow(missing_qbs)), "DEBUG")
+    }
+  }
+}

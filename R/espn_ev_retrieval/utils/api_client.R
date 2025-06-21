@@ -1,7 +1,7 @@
 # API CLIENT FOR ESPN DATA RETRIEVAL --------------------------------------
 # Purpose: Unified API client with caching and retry logic
 # Author: Professional implementation with httr
-# Last Updated: 2025-12-19
+# Last Updated: 2025-06-21
 
 suppressPackageStartupMessages({
   library(httr)
@@ -17,6 +17,8 @@ if (!exists("espn_config")) {
     source("utils/common.R")
   } else if (file.exists("common.R")) {
     source("common.R")
+  } else if (file.exists(here::here("R", "espn_ev_retrieval", "utils", "common.R"))) {
+    source(here::here("R", "espn_ev_retrieval", "utils", "common.R"))
   } else {
     stop("Cannot find common.R - please ensure working directory is correct")
   }
@@ -27,7 +29,6 @@ if (!exists("espn_config")) {
 APIClient <- R6Class("APIClient",
   private = list(
     base_url = NULL,
-    # headers = NULL,
     timeout = NULL,
     cache = NULL,
     cache_duration = 3600,  # 1 hour default
@@ -87,11 +88,9 @@ APIClient <- R6Class("APIClient",
   
   public = list(
     # Initialize
-    initialize = function(base_url, # headers = list(), 
-                          timeout = espn_config$timeout,
+    initialize = function(base_url, timeout = espn_config$timeout,
                           use_cache = TRUE, cache_duration = 3600) {
       private$base_url <- sub("/$", "", base_url)  # Remove trailing slash
-      # private$headers <- headers
       private$timeout <- timeout
       private$cache_duration <- cache_duration
       
@@ -99,60 +98,58 @@ APIClient <- R6Class("APIClient",
         private$cache <- new.env(hash = TRUE)
       }
       
-      log_message(sprintf("API client initialized for: %s", private$base_url), "DEBUG")
+      log_message(sprintf("Initialized API client for %s", private$base_url), "DEBUG")
     },
     
     # Make GET request
     get = function(endpoint, query = list(), use_cache = TRUE) {
-      url <- private$build_url(endpoint)
+      # Build URL
+      if (!startsWith(endpoint, "http")) {
+        url <- private$build_url(endpoint)
+      } else {
+        # Full URL provided (for following references)
+        url <- endpoint
+      }
       
       # Check cache first
       if (use_cache) {
-        cached_data <- private$check_cache(url)
-        if (!is.null(cached_data)) {
-          return(cached_data)
-        }
+        cached <- private$check_cache(url)
+        if (!is.null(cached)) return(cached)
       }
       
-      # Make request with retry
-      response <- with_retry(
-        function() {
-          GET(
-            url,
-            query = query,
-            # add_headers(.headers = private$headers),
-            timeout(private$timeout)
+      # Make request
+      log_message(sprintf("API GET: %s", url), "DEBUG")
+      
+      response <- tryCatch({
+        GET(
+          url = url,
+          query = query,
+          timeout(private$timeout),
+          add_headers(
+            `Accept` = "application/json",
+            `User-Agent` = "JuiceLoose/1.0"
           )
-        },
-        context = sprintf("API request to %s", url)
-      )
+        )
+      }, error = function(e) {
+        log_message(sprintf("Request failed: %s", e$message), "ERROR")
+        NULL
+      })
       
-      if (is.null(response)) {
-        return(NULL)
-      }
+      if (is.null(response)) return(NULL)
       
       # Check status
       if (status_code(response) != 200) {
-        log_message(sprintf("API request failed with status %d: %s",
-                            status_code(response), url), "ERROR")
+        log_message(sprintf("API returned status %d: %s", 
+                            status_code(response),
+                            content(response, "text", encoding = "UTF-8")), "ERROR")
         return(NULL)
       }
-
-      # Quota information
+      
+      # Check for rate limit headers
       hdr <- headers(response)
-      remaining <- hdr[["x-requests-remaining"]]
-      used      <- hdr[["x-requests-used"]]
-      last_cost <- hdr[["x-requests-last"]]
-      if (!is.null(remaining) || !is.null(used) || !is.null(last_cost)) {
-        log_message(
-          sprintf(
-            "Quota remaining: %s | Used: %s | Last cost: %s",
-            rlang::`%||%`(remaining, "NA"),
-            rlang::`%||%`(used, "NA"),
-            rlang::`%||%`(last_cost, "NA")
-          ),
-          "INFO"
-        )
+      if (!is.null(hdr$`x-requests-remaining`)) {
+        log_message(sprintf("API quota: %s remaining", 
+                            hdr$`x-requests-remaining`), "INFO")
       }
       
       # Parse response
@@ -164,7 +161,7 @@ APIClient <- R6Class("APIClient",
         log_message(sprintf("Failed to parse JSON response: %s", e$message), "ERROR")
         NULL
       })
-
+      
       if (!is.null(data)) {
         attr(data, "response_headers") <- hdr
       }
@@ -201,7 +198,7 @@ APIClient <- R6Class("APIClient",
   )
 )
 
-# ESPN API CLIENT -----------------------------------------------------------
+# ESPN API CLIENT ----------------------------------------------------------
 
 #' Create ESPN API client instance
 #' @param use_cache Whether to enable caching
@@ -209,7 +206,6 @@ APIClient <- R6Class("APIClient",
 create_espn_api_client <- function(use_cache = TRUE) {
   APIClient$new(
     base_url = espn_config$espn_api_base,
-    # headers = list(Accept = "application/json"),
     use_cache = use_cache,
     cache_duration = 3600  # 1 hour for ESPN data
   )
@@ -228,7 +224,6 @@ create_odds_api_client <- function(use_cache = TRUE) {
   
   APIClient$new(
     base_url = espn_config$odds_api_base,
-    # headers = list("Accept" = "application/json"),
     use_cache = use_cache,
     cache_duration = 600  # 10 minutes for odds (changes frequently)
   )
